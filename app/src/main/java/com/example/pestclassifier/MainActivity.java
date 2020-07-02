@@ -6,13 +6,10 @@ import androidx.core.content.FileProvider;
 
 import android.Manifest;
 import android.app.AlertDialog;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -23,7 +20,9 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.karumi.dexter.Dexter;
@@ -49,8 +48,10 @@ public class MainActivity extends AppCompatActivity {
     private ImageView imageview;
     private ImageView placeHolderIV;
     private Button selectImageButton;
-    private Button uploadButton;
+    private Button predictButton,cancelButton;
     private Spinner selectModelSpinner;
+    private ProgressBar loadingProgressBar;
+    private TextView loadingTextView;
 
     private int GALLERY = 1, CAMERA = 2;
     private boolean imageLoaded = false;
@@ -131,11 +132,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupView(){
-        uploadButton = findViewById(R.id.uploadButton);
+        predictButton = findViewById(R.id.predictButton);
         selectImageButton = findViewById(R.id.selectImageButton);
         imageview = findViewById(R.id.imageView);
         placeHolderIV = findViewById(R.id.ivPlaceholder);
         selectModelSpinner = findViewById(R.id.selectModelSpinner);
+        cancelButton = findViewById(R.id.cancelButton);
+        loadingTextView = findViewById(R.id.waitTextView);
+        loadingProgressBar = findViewById(R.id.progressBar);
+
+        hideLoadingView();
+        showMainView();
     }
     private void setupSpinner(){
         // Spinner Drop down elements
@@ -181,10 +188,23 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        uploadButton.setOnClickListener(new View.OnClickListener() {
+        predictButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                uploadButtonTapped();
+
+                Intent newIntent = new Intent(getApplicationContext(), ResultsActivity.class);
+                //newIntent.putExtra("TITLE", text);
+                startActivity(newIntent);
+
+                predictButtonTapped();
+            }
+        });
+
+        cancelButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                showMainView();
+                hideLoadingView();
             }
         });
     }
@@ -236,7 +256,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void uploadButtonTapped(){
+    private void predictButtonTapped(){
 
         if(!imageLoaded){
             Toast.makeText(this, "Please upload an image first!", Toast.LENGTH_SHORT).show();
@@ -248,7 +268,32 @@ public class MainActivity extends AppCompatActivity {
 //            Toast.makeText(this, "Could not get location!", Toast.LENGTH_SHORT).show();
 //        }
         // Upload the image
+
+        hideMainView();
+        showLoadingView();
         uploadImage();
+    }
+
+    private void hideMainView(){
+        selectImageButton.setVisibility(View.INVISIBLE);
+        predictButton.setVisibility(View.INVISIBLE);
+        selectModelSpinner.setVisibility(View.INVISIBLE);
+    }
+    private void showMainView(){
+        selectImageButton.setVisibility(View.VISIBLE);
+        predictButton.setVisibility(View.VISIBLE);
+        selectModelSpinner.setVisibility(View.VISIBLE);
+    }
+
+    private void hideLoadingView(){
+        cancelButton.setVisibility(View.INVISIBLE);
+        loadingProgressBar.setVisibility(View.INVISIBLE);
+        loadingTextView.setVisibility(View.INVISIBLE);
+    }
+    private void showLoadingView(){
+        cancelButton.setVisibility(View.VISIBLE);
+        loadingProgressBar.setVisibility(View.VISIBLE);
+        loadingTextView.setVisibility(View.VISIBLE);
     }
 
     private File createImageFile() throws IOException {
