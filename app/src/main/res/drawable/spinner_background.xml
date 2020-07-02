@@ -19,5 +19,11 @@
                     android:color="#000000"/>
             </shape>
         </item>
+        <item>
+            <bitmap android:gravity="right"
+                android:src="@drawable/spinner_dropdown_icon" />
+            // you can use any other image here, instead of default_holo_dark_am
+        </item>
+
     </layer-list></item>
 </selector>
