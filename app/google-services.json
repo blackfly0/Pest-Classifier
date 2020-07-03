@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "601399324644",
+    "firebase_url": "https://fyp-sheez.firebaseio.com",
+    "project_id": "fyp-sheez",
+    "storage_bucket": "fyp-sheez.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:601399324644:android:0a9a06b92c16304cc7e1f1",
+        "android_client_info": {
+          "package_name": "com.example.pestclassifier"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "601399324644-3o5b7k9516oi9obuuioir0kr3lr2en2a.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCycyw7BRJC3m8zS8eYqIssoj9LyQ5tPO0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "601399324644-3o5b7k9516oi9obuuioir0kr3lr2en2a.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

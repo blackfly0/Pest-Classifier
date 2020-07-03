@@ -1,11 +1,13 @@
 package com.example.pestclassifier;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
 
 import android.Manifest;
 import android.app.AlertDialog;
+import android.app.DownloadManager;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -25,6 +27,21 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.android.volley.DefaultRetryPolicy;
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
+import com.google.android.gms.tasks.Continuation;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.OnProgressListener;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
 import com.karumi.dexter.Dexter;
 import com.karumi.dexter.MultiplePermissionsReport;
 import com.karumi.dexter.PermissionToken;
@@ -33,12 +50,21 @@ import com.karumi.dexter.listener.PermissionRequest;
 import com.karumi.dexter.listener.PermissionRequestErrorListener;
 import com.karumi.dexter.listener.multi.MultiplePermissionsListener;
 
+import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
+import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import static android.R.layout.simple_spinner_dropdown_item;
 
@@ -55,8 +81,14 @@ public class MainActivity extends AppCompatActivity {
 
     private int GALLERY = 1, CAMERA = 2;
     private boolean imageLoaded = false;
-    boolean isFromGallery;
+    boolean isFromGallery, isModelSelected = false;
     private String currentPhotoName,currentPhotoPath;
+    StringRequest stringRequest;
+    RequestQueue requestQueue;
+
+    // Create a storage reference from our app
+    FirebaseStorage storage = FirebaseStorage.getInstance("gs://ip102-models");
+    StorageReference storageRef = storage.getReference();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,6 +99,16 @@ public class MainActivity extends AppCompatActivity {
         setupView();
         setupSpinner();
         setupButtonListeners();
+
+        requestQueue = Volley.newRequestQueue(this);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        hideLoadingView();
+        showMainView();
+
     }
 
     @Override
@@ -169,6 +211,7 @@ public class MainActivity extends AppCompatActivity {
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 if (position != 0){
                     String item = parent.getItemAtPosition(position).toString();
+                    isModelSelected = true;
                 }
             }
 
@@ -191,11 +234,6 @@ public class MainActivity extends AppCompatActivity {
         predictButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-
-                Intent newIntent = new Intent(getApplicationContext(), ResultsActivity.class);
-                //newIntent.putExtra("TITLE", text);
-                startActivity(newIntent);
-
                 predictButtonTapped();
             }
         });
@@ -203,6 +241,9 @@ public class MainActivity extends AppCompatActivity {
         cancelButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                if (requestQueue != null) {
+                    requestQueue.cancelAll(TAG);
+                }
                 showMainView();
                 hideLoadingView();
             }
@@ -263,6 +304,11 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
+        if (!isModelSelected) {
+            Toast.makeText(this, "Please select a model first!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
 //        Location location = getLocationWithCheckNetworkAndGPS(getApplicationContext());
 //        if(location == null){
 //            Toast.makeText(this, "Could not get location!", Toast.LENGTH_SHORT).show();
@@ -315,6 +361,114 @@ public class MainActivity extends AppCompatActivity {
 
     private void uploadImage(){
 
+        final StorageReference ImagesRef = storageRef.child("Test Images/" + currentPhotoName);
+        byte[] data = new byte[0];
+
+        Bitmap bitmap;
+        Uri photoURI;
+        if(isFromGallery){
+            photoURI = Uri.fromFile(new File(currentPhotoPath));
+        }else {
+            File f = new File(currentPhotoPath);
+            photoURI = FileProvider.getUriForFile(this,
+                    "com.example.plantsimagecollection.fileprovider",
+                    f);
+        }
+
+        try {
+            bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), photoURI);
+            bitmap = Constants.correctOrientationOfBitmap(bitmap, currentPhotoPath);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, baos);
+            data = baos.toByteArray();
+        }
+        catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+
+        String downloadURL = "";
+        UploadTask uploadTask = ImagesRef.putBytes(data);
+        Task<Uri> urlTask = uploadTask.continueWithTask(new Continuation<UploadTask.TaskSnapshot, Task<Uri>>() {
+            @Override
+            public Task<Uri> then(@NonNull Task<UploadTask.TaskSnapshot> task) throws Exception {
+                if (!task.isSuccessful()) {
+                    throw task.getException();
+                }
+
+                // Continue with the task to get the download URL
+                return ImagesRef.getDownloadUrl();
+            }
+        }).addOnCompleteListener(new OnCompleteListener<Uri>() {
+            @Override
+            public void onComplete(@NonNull Task<Uri> task) {
+                if (task.isSuccessful()) {
+                    Uri downloadUri = task.getResult();
+                    //final String downloadURLString = downloadUri.toString();
+                    predictImage();
+                    Log.d(TAG, "********* download url:" + downloadUri.toString());
+                } else {
+                    // Handle failures
+                    // ...
+                }
+            }
+        });
+
+        uploadTask.addOnProgressListener(new OnProgressListener<UploadTask.TaskSnapshot>() {
+            @Override
+            public void onProgress(UploadTask.TaskSnapshot taskSnapshot) {
+                double progress = (100.0 * taskSnapshot.getBytesTransferred()) / taskSnapshot.getTotalByteCount();
+
+//                imageUploadProgress = (int)progress;
+//                uploadProgressTextView.setText("Uploading " +Integer.toString(imageUploadProgress) + "%");
+//                if (imageUploadProgress >= 100) {
+//                    Toast.makeText(MainActivity.this, "Image Upload Successful!", Toast.LENGTH_SHORT).show();
+//                }
+                if ((int)progress >= 100) {
+                    Toast.makeText(MainActivity.this, "Image Upload Successful!", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
+        bitmap = null;
+    }
+
+    private void predictImage(){
+
+        String url = "https://us-central1-fyp-sheez.cloudfunctions.net/predict?imageName=" + currentPhotoName;
+
+        // Request a string response from the provided URL.
+        stringRequest = new StringRequest(Request.Method.GET, url,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+
+                        try {
+                            JSONObject obj = new JSONObject(response);
+                            Log.d("Response", obj.toString());
+
+                            Intent newIntent = new Intent(getApplicationContext(), ResultsActivity.class);
+                            newIntent.putExtra("RESULTS", response);
+                            startActivity(newIntent);
+
+                        } catch (Throwable t) {
+                            Log.e("My App", "Could not parse malformed JSON");
+                        }
+                    }
+                }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                Log.d(TAG, "********* Error: "+ error.toString());
+            }
+        });
+
+        stringRequest.setRetryPolicy(new DefaultRetryPolicy(
+                5000,
+                DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
+                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+        stringRequest.setTag(TAG);
+        requestQueue.add(stringRequest);
     }
 
     private void setPic() {
