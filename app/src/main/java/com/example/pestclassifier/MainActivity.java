@@ -12,6 +12,12 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.BitmapShader;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.RectF;
+import android.graphics.Shader;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -371,7 +377,7 @@ public class MainActivity extends AppCompatActivity {
         }else {
             File f = new File(currentPhotoPath);
             photoURI = FileProvider.getUriForFile(this,
-                    "com.example.plantsimagecollection.fileprovider",
+                    "com.example.pestclassifier.fileprovider",
                     f);
         }
 
@@ -493,6 +499,8 @@ public class MainActivity extends AppCompatActivity {
 
         Bitmap bitmap = BitmapFactory.decodeFile(currentPhotoPath, bmOptions);
         bitmap = Constants.correctOrientationOfBitmap(bitmap, currentPhotoPath);
+        //imageview.setClipToOutline(true);
+        imageview.setBackgroundColor(Color.WHITE);
         imageview.setImageBitmap(bitmap);
     }
 
