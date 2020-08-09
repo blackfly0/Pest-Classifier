@@ -85,6 +85,7 @@ public class MainActivity extends AppCompatActivity {
     private ProgressBar loadingProgressBar;
     private TextView loadingTextView;
 
+    private String modelName = "";
     private int GALLERY = 1, CAMERA = 2;
     private boolean imageLoaded = false;
     boolean isFromGallery, isModelSelected = false;
@@ -199,6 +200,10 @@ public class MainActivity extends AppCompatActivity {
         modelNames.add("Corn");
         modelNames.add("Wheat");
         modelNames.add("Mango");
+        modelNames.add("Citrus");
+        modelNames.add("Beet");
+        modelNames.add("Alfalfa");
+        modelNames.add("Vitis");
 
         ArrayAdapter<String> dataAdapter = new ArrayAdapter(this, android.R.layout.simple_spinner_item, modelNames);
         dataAdapter.setDropDownViewResource(simple_spinner_dropdown_item);
@@ -217,6 +222,8 @@ public class MainActivity extends AppCompatActivity {
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 if (position != 0){
                     String item = parent.getItemAtPosition(position).toString();
+                    item = item + "Model?";
+                    modelName = item;
                     isModelSelected = true;
                 }
             }
@@ -442,7 +449,13 @@ public class MainActivity extends AppCompatActivity {
 
     private void predictImage(){
 
-        String url = "https://us-central1-fyp-sheez.cloudfunctions.net/predict?imageName=" + currentPhotoName;
+        String url = "";
+        if (modelName != "") {
+            url += "https://us-central1-fyp-sheez.cloudfunctions.net/" + modelName + "imageName=" + currentPhotoName;
+        } else {
+            return;
+        }
+       // String url = "https://us-central1-fyp-sheez.cloudfunctions.net/predict?imageName=" + currentPhotoName;
 
         // Request a string response from the provided URL.
         stringRequest = new StringRequest(Request.Method.GET, url,
@@ -470,7 +483,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
         stringRequest.setRetryPolicy(new DefaultRetryPolicy(
-                5000,
+                20000,
                 DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
                 DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
         stringRequest.setTag(TAG);
